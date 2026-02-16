@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Dataset Lineage</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <script defer src="/static/lineage_graph.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>Dataset Lineage: {{view.name}}</h1>
+
+  <div class="controls">
+    <a class="btn" href="/">Home</a>
+    <a class="btn secondary" href="/search?q={{view.name}}">Search</a>
+    <a class="btn secondary" href="/chat">Ask AI</a>
+
+    <label>View</label>
+    <select id="mode">
+      <option value="both">Upstream + Downstream</option>
+      <option value="up">Upstream only</option>
+      <option value="down">Downstream only</option>
+    </select>
+
+    <label>Depth</label>
+    <select id="depth">
+      <option value="1">1</option>
+      <option value="2" selected>2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+    </select>
+
+    <span class="hint">Tip: scroll to zoom • drag to pan • click nodes to drill • click edges for evidence</span>
+  </div>
+
+  <div class="graph-wrap">
+    <div id="graph"></div>
+    <div id="panel"></div>
+  </div>
+
+  <div class="card">
+    <div class="hint">
+      This MVP builds <b>high-confidence dataset lineage</b> from Spark event logs.
+      Column lineage is <b>best-effort</b> unless Spark plans contain column mappings.
+    </div>
+  </div>
+</div>
+
+<script>
+  window.addEventListener("DOMContentLoaded", () => {
+    renderDatasetPage("{{view.name}}");
+  });
+</script>
+</body>
+</html>

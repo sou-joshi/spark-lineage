@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Spark Lineage MVP</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Spark Lineage MVP (Offline AI)</h1>
+
+    <div class="card">
+      <h3>Stats</h3>
+      <p>Datasets: <b>{{stats.datasets}}</b> | Columns: <b>{{stats.columns}}</b> | Edges: <b>{{stats.edges}}</b></p>
+      <div class="row">
+        <form action="/reset" method="post">
+          <button class="danger" type="submit">Reset DB</button>
+        </form>
+        <a class="btn" href="/search?q=mart_policy_daily">Try sample search</a>
+        <a class="btn" href="/chat">Chat</a>
+      </div>
+      <p class="hint">Tip: Upload <code>data/logs/sample_eventlog.jsonl</code> to get immediate demo lineage.</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Upload Spark Event Log (JSONL)</h3>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+          <input type="file" name="file" required/>
+          <button type="submit">Upload & Ingest</button>
+        </form>
+        <p class="hint">We parse <code>sparkPlanInfo</code> to build lineage edges + evidence.</p>
+      </div>
+
+      <div class="card">
+        <h3>Upload Spark Driver Log (optional)</h3>
+        <form action="/upload_driver_log" method="post" enctype="multipart/form-data">
+          <input type="file" name="file" required/>
+          <button type="submit">Upload & Parse</button>
+        </form>
+        <p class="hint">Adds extra hints about reads/writes (paths, tables) from log lines.</p>
+      </div>
+
+      <div class="card">
+        <h3>Search</h3>
+        <form action="/search" method="get">
+          <input name="q" placeholder="table or column..." />
+          <button type="submit">Search</button>
+        </form>
+        <p class="hint">Search tables (datasets) + columns.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Demo Questions</h3>
+      <ul>
+        <li>Where does <b>customer_email</b> come from?</li>
+        <li>What feeds <b>default.mart_policy_daily</b>?</li>
+        <li>Downstream impact of changing <b>risk_score</b> in <b>default.mart_policy_daily</b>?</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

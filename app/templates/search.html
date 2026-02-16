@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Search</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+<div class="wrap">
+  <h1>Search</h1>
+  <form action="/search" method="get" class="row">
+    <input name="q" value="{{q}}" placeholder="table or column..."/>
+    <button type="submit">Search</button>
+    <a class="btn" href="/">Home</a>
+  </form>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Datasets (tables/files)</h3>
+      {% if results.tables %}
+        <ul>
+          {% for t in results.tables %}
+            <li><a href="/lineage/table/{{t}}">{{t}}</a></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="hint">No datasets match.</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>Columns</h3>
+      {% if results.columns %}
+        <ul>
+          {% for c in results.columns %}
+            <li><a href="/lineage/column?column={{c}}">{{c}}</a></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="hint">No columns match.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

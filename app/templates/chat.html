@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Chat</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+<div class="wrap">
+  <h1>Chat (Offline LLM)</h1>
+  <div class="row">
+    <a class="btn" href="/">Home</a>
+    <a class="btn" href="/search">Search</a>
+  </div>
+
+  <div class="card">
+    <form action="/chat" method="post">
+      <input name="question" value="{{question}}" placeholder="Ask lineage questions..." required/>
+      <button type="submit">Ask</button>
+    </form>
+    <p class="hint">Model required at <code>data/models/model.gguf</code> (or set MODEL_PATH). If missing, app uses a safe fallback.</p>
+  </div>
+
+  {% if answer %}
+    <div class="card">
+      <h3>Answer</h3>
+      <pre>{{answer.summary}}</pre>
+      <h3>Evidence snippets</h3>
+      {% for ev in answer.evidence %}
+        <pre>{{ev}}</pre>
+      {% endfor %}
+      <h3>Resolved intent</h3>
+      <pre>{{answer.spec}}</pre>
+    </div>
+
+    <div class="card">
+      <h3>Raw result (debug)</h3>
+      <pre>{{answer.result}}</pre>
+    </div>
+  {% endif %}
+</div>
+</body>
+</html>

@@ -1,0 +1,4 @@
+2026-02-15 10:00:01 INFO Driver: Reading s3://demo-bucket/raw/policy_delta/
+2026-02-15 10:00:04 INFO Driver: Reading s3://demo-bucket/raw/customer_dim/
+2026-02-15 10:00:10 INFO Driver: Writing s3://demo-bucket/curated/mart_policy_daily/
+2026-02-15 10:00:12 INFO Driver: table: default.mart_policy_daily write complete
