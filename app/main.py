@@ -200,11 +200,83 @@ def _layer(name: str) -> str:
     return "OTHER"
 
 def _ai_answer(question: str, graph_key: str):
-    # AI demo response grounded in lineage + transformations based on the parsed lineage graph.
+    # AI response grounded in lineage + transformations based on the parsed lineage graph.
     q = (question or "").strip()
     gctx = _graph_for_key(graph_key)
     graph = gctx["graph"]
     # Helpers
+    datasets = [n["name"] for n in graph.get("nodes", []) if n.get("type") == "dataset"]
+    columns = [n["name"] for n in graph.get("nodes", []) if n.get("type") == "column"]
+
+    def _fuzzy_one(query: str, choices: list[str]) -> str | None:
+        query = (query or "").strip()
+        if not query:
+            return None
+        # normalize
+        qn = re.sub(r"[^a-z0-9]+", "", query.lower())
+        scored = []
+        for c in choices:
+            cn = re.sub(r"[^a-z0-9]+", "", c.lower())
+            # simple ratio using difflib
+            score = difflib.SequenceMatcher(None, qn, cn).ratio()
+            if qn and qn in cn:
+                score = max(score, 0.92)
+            scored.append((score, c))
+        scored.sort(reverse=True, key=lambda x: x[0])
+        return scored[0][1] if scored and scored[0][0] >= 0.62 else None
+
+    def find_dataset_name():
+        # exact first
+        m = re.search(r"(ORACLE\.[A-Z0-9_\.]+|S3://[^\s)]+)", q, re.I)
+        if m:
+            return m.group(1)
+        # otherwise, fuzzy on known dataset names
+        # if user mentions "mart"/"stg"/"ods", use token-based hint
+        hint = None
+        low = q.lower()
+        if "mart" in low:
+            hint = "MART"
+        elif "stg" in low or "staging" in low:
+            hint = "STG"
+        elif "ods" in low:
+            hint = "ODS"
+        if hint:
+            cand = [d for d in datasets if hint in d.upper()]
+            pick = _fuzzy_one(q, cand) if cand else None
+            if pick:
+                return pick
+        return gctx.get("default_dataset")
+
+    def find_column_full():
+        # exact fully-qualified column
+        m = re.search(r"(ORACLE\.[A-Z0-9_]+\.[A-Z0-9_]+)", q, re.I)
+        if m:
+            return m.group(1)
+        # common phrasing: "ping count", "lat band", etc
+        # Try to map "<something> <something>" -> COL name inside default dataset
+        ds = find_dataset_name()
+        # candidate column names in that dataset
+        ds_cols = [c for c in columns if c.upper().startswith(ds.upper() + ".")]
+        # build a small alias map
+        aliases = {
+            "ping count": ds + ".PING_COUNT",
+            "lat band": ds + ".LAT_BAND",
+            "latitude band": ds + ".LAT_BAND",
+            "event date": ds + ".EVENT_DATE",
+        }
+        for k,v in aliases.items():
+            if k in q.lower():
+                return v
+        # fuzzy: if user typed just PING_COUNT or ping_count
+        m2 = re.search(r"\b([A-Z][A-Z0-9_]{2,})\b", q)
+        if m2:
+            token = m2.group(1)
+            pick = _fuzzy_one(ds + "." + token, ds_cols)
+            if pick:
+                return pick
+        # fallback: fuzzy on all columns
+        pick = _fuzzy_one(q, columns)
+        return pick
     def find_dataset_name():
         m = re.search(r"(ORACLE\.[A-Z0-9_\.]+|S3://[^\s)]+)", q, re.I)
         return m.group(1) if m else gctx.get("default_dataset")
@@ -220,9 +292,12 @@ def _ai_answer(question: str, graph_key: str):
     if ("how is" in q.lower() or "derived" in q.lower() or "computed" in q.lower()) and col_full:
         cid = _id_for_column(col_full)
         incoming = _edges_into(graph, cid)
+        # If the parser did not create explicit derived edges, try to infer from transformation metadata attached to other edges
+        if not incoming:
+            incoming = [e for e in graph.get("edges", []) if e.get("edge_type")=="column" and e.get("v")==cid]
         if not incoming:
             return {
-              "answer": f"I couldn't find a derived lineage edge into {col_full} in this demo graph. It may be pass-through or not captured.",
+              "answer": f"I couldn't find an explicit derivation edge for **{col_full}** in the parsed lineage. In real runs this usually means the column is pass-through, or the plan/logs didn't include expression detail. Try opening the column lineage page for this column, or ask: \"show upstream lineage for {col_full}\".",
               "references": []
             }
         # Prefer edges with transformation metadata
@@ -282,6 +357,48 @@ def _ai_answer(question: str, graph_key: str):
 
     # Default
     return {"answer": "Try clicking one of the 20 demo questions or ask about a specific dataset/column (e.g., ORACLE.MART_LATITUDE_DAILY.LAT_BAND).", "references":[]}
+
+
+@app.get("/search")
+def search_page(request: Request, g: str = "latitude", q: str = ""):
+    gctx = _graph_for_key(g)
+    return templates.TemplateResponse("search.html", {"request": request, "graph_key": g, "query": q, "default_dataset": gctx.get("default_dataset")})
+
+@app.get("/api/search")
+def api_search(g: str = "latitude", q: str = "", limit: int = 20):
+    gctx = _graph_for_key(g)
+    graph = gctx["graph"]
+    q = (q or "").strip()
+    nodes = graph.get("nodes", [])
+    choices = [(n.get("name",""), n.get("type","")) for n in nodes]
+    if not q:
+        # return top datasets + a few columns from default dataset
+        out = []
+        for name, typ in choices:
+            if typ == "dataset":
+                out.append({"name": name, "type": typ, "score": 1.0})
+        out = out[:min(limit, len(out))]
+        return {"results": out}
+
+    def norm(s: str) -> str:
+        return re.sub(r"[^a-z0-9]+","", (s or "").lower())
+
+    qn = norm(q)
+    scored = []
+    for name, typ in choices:
+        nn = norm(name)
+        score = difflib.SequenceMatcher(None, qn, nn).ratio()
+        if qn and qn in nn:
+            score = max(score, 0.92)
+        # small boost if user mentions "column" and this is a column etc
+        if "column" in q.lower() and typ == "column":
+            score += 0.03
+        if "table" in q.lower() and typ == "dataset":
+            score += 0.03
+        scored.append((score, name, typ))
+    scored.sort(reverse=True, key=lambda x: x[0])
+    results = [{"name": n, "type": t, "score": round(s, 3)} for s,n,t in scored[:limit] if s >= 0.45]
+    return {"results": results}
 
 @app.get("/ai", response_class=HTMLResponse)
 def ai_demo(request: Request, g: str = Query("latitude")):

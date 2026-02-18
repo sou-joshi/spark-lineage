@@ -2,45 +2,69 @@
 <html>
 <head>
   <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Search</title>
-  <link rel="stylesheet" href="/static/style.css"/>
+  <link rel="stylesheet" href="/static/app.css"/>
 </head>
 <body>
 <div class="wrap">
-  <h1>Search</h1>
-  <form action="/search" method="get" class="row">
-    <input name="q" value="{{q}}" placeholder="table or column..."/>
-    <button type="submit">Search</button>
-    <a class="btn" href="/">Home</a>
-  </form>
+  <div class="topbar">
+    <div style="display:flex; gap:10px; align-items:center">
+      <a class="pill" href="/">Home</a>
+      <a class="pill" href="/ai?g={{ graph_key }}">AI Demo</a>
+      <span class="pill">Search</span>
+      <span class="badge">Graph: {{ graph_key }}</span>
+    </div>
+  </div>
 
-  <div class="grid">
+  <div class="grid" style="grid-template-columns: 1.4fr 1fr; gap:16px; margin-top:14px">
     <div class="card">
-      <h3>Datasets (tables/files)</h3>
-      {% if results.tables %}
-        <ul>
-          {% for t in results.tables %}
-            <li><a href="/lineage/table/{{t}}">{{t}}</a></li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="hint">No datasets match.</p>
-      {% endif %}
+      <h3 style="margin:0 0 10px 0">Search datasets / columns</h3>
+      <div class="hint" style="margin-bottom:10px">Fuzzy search is enabled. Try: “ping count”, “mart latitude”, “msisdn hash”, “ods latitude”.</div>
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px">
+        <input id="q" type="text" value="{{ query or '' }}" placeholder="Search..."
+               style="flex:1; padding:12px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background:rgba(2,6,23,0.55); color:rgba(255,255,255,0.9)"/>
+        <a class="btn" id="go" href="#">Search</a>
+      </div>
+
+      <div class="card" style="background:rgba(2,6,23,0.35); border:1px solid rgba(255,255,255,0.08)">
+        <div id="results" class="mono" style="white-space:pre-wrap"></div>
+      </div>
     </div>
 
     <div class="card">
-      <h3>Columns</h3>
-      {% if results.columns %}
-        <ul>
-          {% for c in results.columns %}
-            <li><a href="/lineage/column?column={{c}}">{{c}}</a></li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="hint">No columns match.</p>
-      {% endif %}
+      <h3 style="margin:0 0 10px 0">Tips</h3>
+      <div class="mono" style="white-space:pre-wrap; color:rgba(255,255,255,0.78)">
+- Type partial names (no need for full ORACLE.X.Y).
+- Click a dataset result to open its lineage page.
+- Click a column result to open column lineage.
+      </div>
     </div>
   </div>
 </div>
+
+<script>
+async function runSearch(){
+  const q = document.getElementById("q").value.trim();
+  const r = await fetch(`/api/search?g={{ graph_key }}&q=${encodeURIComponent(q)}&limit=25`);
+  const j = await r.json();
+  const out = [];
+  for (const it of (j.results||[])){
+    const name = it.name;
+    const typ = it.type;
+    const score = it.score;
+    if (typ === "dataset"){
+      out.push(`• [table] ${name}  (score=${score})\n   Open: /lineage/table/${encodeURIComponent(name)}?g={{ graph_key }}`);
+    } else {
+      out.push(`• [column] ${name}  (score=${score})\n   Open: /lineage/column?name=${encodeURIComponent(name)}&g={{ graph_key }}`);
+    }
+  }
+  document.getElementById("results").textContent = out.join("\n\n") || "No matches";
+}
+document.getElementById("go").addEventListener("click",(e)=>{ e.preventDefault(); runSearch(); });
+document.getElementById("q").addEventListener("keydown",(e)=>{ if(e.key==="Enter") document.getElementById("go").click(); });
+runSearch();
+</script>
+
 </body>
 </html>

@@ -158,9 +158,18 @@ def parse_eventlog_jsonl(path: Path) -> Dict[str, Any]:
                 # Eventlog records may include: transformations: [{target_col, sources:[..], expr, kind, udf, confidence, evidence}]
                 for t in (payload.get("transformations") or []):
                     try:
-                        tgt_col = t.get("target_col")
+                        tgt_col = t.get("target_col") or t.get("output_column") or t.get("target")
                         if not tgt_col:
                             continue
+                        # normalize common keys
+                        if "expr" not in t and "expression" in t:
+                            t["expr"] = t.get("expression")
+                        if "kind" not in t and "type" in t:
+                            t["kind"] = t.get("type")
+                        if "sources" not in t and "inputs" in t:
+                            # inputs may be ["LAT_NUMBER"] (assumed within first source dataset if available)
+                            t["sources"] = t.get("inputs")
+
                         # target_col can be "dataset.col" or just "col" (assumed on target dataset)
                         if "." in tgt_col:
                             tgt_ds, tgt_c = tgt_col.split(".", 1)
