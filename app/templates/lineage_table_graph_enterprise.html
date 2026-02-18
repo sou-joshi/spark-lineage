@@ -11,6 +11,7 @@
   <div class="topbar">
     <div class="brand">
       <a class="btn" href="/">Home</a>
+      <a class="btn" href="/ai?g={{graph_key}}">AI demo</a>
       <span class="badge">Dataset</span>
       <span style="font-weight:800">{{dataset}}</span>
       <span class="badge">Graph: {{graph_key}}</span>
@@ -73,10 +74,38 @@ function pill(c){
 }
 function setPanel(html){panel.innerHTML=html;}
 
+async function showColumnDetails(fullName){
+  const res=await fetch(`/api/column?column=${encodeURIComponent(fullName)}&depth=1&mode=all&g=${encodeURIComponent(graphKey)}`);
+  const view=await res.json();
+  const edges=(view.graph.edges||[]).filter(e=>e.edge_type==="column" && e.v===("col:"+fullName));
+  const incoming=edges.filter(e=>e.v===("col:"+fullName));
+  const rows=incoming.map(e=>{
+    const from=(e.u||"").replace("col:","");
+    const tr=e.transformation||{};
+    const kind=tr.kind||"expr";
+    const udf=tr.udf?`<span class="badge">UDF</span> <b>${tr.udf}</b>`:"";
+    const expr=tr.expr||e.evidence||"—";
+    return `<div class="card" style="margin-top:10px;border-radius:12px;padding:10px">
+      <div class="hint">Derived from</div>
+      <div><b>${from}</b></div>
+      <div style="margin-top:6px">${udf} <span class="badge">${kind}</span></div>
+      <pre style="margin-top:8px">${expr}</pre>
+      <div style="margin-top:6px">${pill(e.confidence)}</div>
+    </div>`;
+  }).join("");
+  setPanel(`
+    <div class="panel-title">Column</div>
+    <div><b>${fullName}</b></div>
+    <div class="hint">Click an upstream node to continue drilling.</div>
+    <div class="panel-title" style="margin-top:12px">Derivations</div>
+    ${rows || `<div class="hint" style="margin-top:8px">No derivation edges captured (pass-through or not logged).</div>`}
+  `);
+}
+
 const graph=LineageGraph.createGraph(document.getElementById("graph"),{
   onNodeClick:(n)=>{
     if(n.id.startsWith("ds:")) location.href="/lineage/table/"+encodeURIComponent(n.id.slice(3))+"?g="+encodeURIComponent(graphKey);
-    if(n.id.startsWith("col:")) location.href="/lineage/column?column="+encodeURIComponent(n.id.slice(4))+"&g="+encodeURIComponent(graphKey);
+    if(n.id.startsWith("col:")) { showColumnDetails(n.id.slice(4)); return; }
   },
   onEdgeClick:(e)=>{
     setPanel(`

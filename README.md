@@ -36,3 +36,7 @@
 "python cli_parse_eventlog.py samples/latitude/logs/sample_eventlog_latitude.jsonl --out graph.json
 "
 "```
+
+
+## AI Demo (Offline)
+Open `/ai` for 20 preloaded enterprise questions. This is a deterministic, offline demo grounded in the parsed lineage + transformation metadata embedded in the sample event log.

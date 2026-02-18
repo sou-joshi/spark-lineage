@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>AI Demo Chat</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <a class="btn" href="/">Home</a>
+      <span class="badge">AI Demo</span>
+      <span style="font-weight:800">Offline “AI Assistant” (Deterministic Demo)</span>
+      <span class="badge">Graph: {{graph_key}}</span>
+    </div>
+    <span class="hint">Pick a question → see an “AI-like” response grounded in lineage + transformations.</span>
+  </div>
+
+  <div class="grid" style="grid-template-columns: 1.1fr 0.9fr">
+    <div class="card" style="padding:14px">
+      <div class="panel-title">Ask a question</div>
+      <div class="searchrow" style="margin-top:10px">
+        <input id="q" placeholder="Type your question (e.g., How is ORACLE.MART_LATITUDE_DAILY.LAT_BAND derived?)"/>
+        <a class="btn" id="ask" href="#">Ask</a>
+      </div>
+      <div class="hint" style="margin-top:8px">Tip: Use fully-qualified dataset/column names for best results.</div>
+
+      <div class="panel-title" style="margin-top:14px">AI response</div>
+      <div id="answer" class="card" style="margin-top:10px;border-radius:12px;padding:12px;white-space:pre-wrap;min-height:220px">
+        Pick a demo question on the right, or type your own.
+      </div>
+
+      <div class="panel-title" style="margin-top:14px">References</div>
+      <div id="refs" class="hint" style="margin-top:8px">—</div>
+    </div>
+
+    <div class="card" style="padding:14px">
+      <div class="panel-title">20 enterprise demo questions</div>
+      <div class="hint">Click any to auto-run.</div>
+      <div id="qs" style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+        {% for x in questions %}
+        <a class="btn" href="#" onclick="runQ({{loop.index0}}); return false;" style="text-align:left;white-space:normal;line-height:1.25">{{x}}</a>
+        {% endfor %}
+      </div>
+      <div class="panel-title" style="margin-top:14px">Quick links</div>
+      <div class="hint" style="margin-top:8px">
+        <div>Open dataset lineage: <a href="/lineage/table/{{default_ds}}?g={{graph_key}}">/{{default_ds}}</a></div>
+        <div>Open column lineage: <a href="/lineage/column?column={{default_ds}}.LAT_BAND&g={{graph_key}}">{{default_ds}}.LAT_BAND</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const questions = {{ questions | tojson }};
+const graphKey = "{{graph_key}}";
+const qEl = document.getElementById("q");
+const ansEl = document.getElementById("answer");
+const refsEl = document.getElementById("refs");
+
+async function ask(question){
+  ansEl.textContent = "Thinking (offline demo)…";
+  refsEl.textContent = "—";
+  const res = await fetch("/api/ai/ask", {
+    method:"POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({question, graph_key: graphKey})
+  });
+  const out = await res.json();
+  ansEl.innerHTML = out.answer || "—";
+  if(out.references && out.references.length){
+    refsEl.innerHTML = out.references.slice(0,5).map(r=>{
+      const e=r.edge||{};
+      return `<div style="margin-bottom:8px">
+        <div><span class="badge">edge</span> <code>${e.u||""}</code> → <code>${e.v||""}</code> <span class="pill accent">conf ${(e.confidence||0).toFixed(2)}</span></div>
+        <div class="hint">${(e.evidence||"").toString().slice(0,180)}</div>
+      </div>`;
+    }).join("");
+  } else {
+    refsEl.textContent = "—";
+  }
+}
+
+function runQ(i){
+  const q = questions[i];
+  qEl.value = q;
+  ask(q);
+}
+
+document.getElementById("ask").addEventListener("click",(e)=>{e.preventDefault(); ask(qEl.value);});
+qEl.addEventListener("keydown",(e)=>{ if(e.key==="Enter") ask(qEl.value); });
+</script>
+</body>
+</html>

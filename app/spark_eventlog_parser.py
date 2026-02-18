@@ -25,6 +25,7 @@ class Edge:
     edge_type: str  # dataset|column|contains
     confidence: float = 0.6
     evidence: str = ""
+    transformation: Optional[Dict[str, Any]] = None
 
 def ds(name: str) -> str:
     return f"{DATASET_PREFIX}{name}"
@@ -151,6 +152,58 @@ def parse_eventlog_jsonl(path: Path) -> Dict[str, Any]:
 
                 for tc in tgt_cols[:60]:
                     ensure_column(target, tc)
+
+
+                # --- Enterprise demo: explicit transformation metadata (if present in eventlog) ---
+                # Eventlog records may include: transformations: [{target_col, sources:[..], expr, kind, udf, confidence, evidence}]
+                for t in (payload.get("transformations") or []):
+                    try:
+                        tgt_col = t.get("target_col")
+                        if not tgt_col:
+                            continue
+                        # target_col can be "dataset.col" or just "col" (assumed on target dataset)
+                        if "." in tgt_col:
+                            tgt_ds, tgt_c = tgt_col.split(".", 1)
+                        else:
+                            tgt_ds, tgt_c = (target or ""), tgt_col
+                        if not tgt_ds:
+                            continue
+                        tgt_id = ensure_column(tgt_ds, tgt_c)
+
+                        sources_list = t.get("sources") or []
+                        if not sources_list and t.get("source"):
+                            sources_list = [t.get("source")]
+                        if not sources_list:
+                            continue
+
+                        # add derived edges from each source column into target column
+                        for sc_full in sources_list:
+                            if not sc_full:
+                                continue
+                            if "." in sc_full:
+                                sds, sc = sc_full.split(".", 1)
+                            else:
+                                sds, sc = (sources[0] if sources else ""), sc_full
+                            if not sds:
+                                continue
+                            src_id = ensure_column(sds, sc)
+                            edges.append(Edge(
+                                u=src_id,
+                                v=tgt_id,
+                                edge_type="column",
+                                confidence=float(t.get("confidence") or 0.9),
+                                evidence=str(t.get("evidence") or t.get("expr") or "transformation metadata"),
+                                transformation={
+                                    "kind": t.get("kind") or "expr",
+                                    "udf": t.get("udf"),
+                                    "expr": t.get("expr"),
+                                    "sources": sources_list,
+                                    "target_col": f"{tgt_ds}.{tgt_c}",
+                                    "confidence": float(t.get("confidence") or 0.9),
+                                }
+                            ))
+                    except Exception:
+                        continue
 
                 def norm(x: str) -> str:
                     return re.sub(r"[^a-z0-9]+","", x.lower())
