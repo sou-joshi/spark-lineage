@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
+
 <div class="wrap">
   <div class="topbar">
     <div class="brand">
@@ -14,82 +15,70 @@
       <span style="font-weight:800">Offline “AI Assistant” (Deterministic Demo)</span>
       <span class="badge">Graph: {{graph_key}}</span>
     </div>
-    <span class="hint">Pick a question → see an “AI-like” response grounded in lineage + transformations.</span>
-  </div>
-
-  <div class="grid" style="grid-template-columns: 1.1fr 0.9fr">
-    <div class="card" style="padding:14px">
-      <div class="panel-title">Ask a question</div>
-      <div class="searchrow" style="margin-top:10px">
-        <input id="q" placeholder="Type your question (e.g., How is ORACLE.MART_LATITUDE_DAILY.LAT_BAND derived?)"/>
-        <a class="btn" id="ask" href="#">Ask</a>
+  <div class="grid" style="grid-template-columns: 1.8fr 1fr; gap:16px; margin-top:14px">
+    <div class="card" style="min-height:72vh">
+      <h3 style="margin:0 0 10px 0">Ask a question</h3>
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px">
+        <input id="q" type="text" placeholder="e.g. How is ORACLE.MART_LATITUDE_DAILY.PING_COUNT calculated?"
+               style="flex:1; padding:12px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background:rgba(2,6,23,0.55); color:rgba(255,255,255,0.9)"/>
+        <a class="btn" id="askBtn" href="#">Ask</a>
       </div>
-      <div class="hint" style="margin-top:8px">Tip: Use fully-qualified dataset/column names for best results.</div>
-
-      <div class="panel-title" style="margin-top:14px">AI response</div>
-      <div id="answer" class="card" style="margin-top:10px;border-radius:12px;padding:12px;white-space:pre-wrap;min-height:220px">
-        Pick a demo question on the right, or type your own.
+      <div class="hint" style="margin-bottom:12px">
+        Tip: Use fully-qualified dataset/column names for best results.
       </div>
 
-      <div class="panel-title" style="margin-top:14px">References</div>
-      <div id="refs" class="hint" style="margin-top:8px">—</div>
+      <div class="card" style="background:rgba(2,6,23,0.35); border:1px solid rgba(255,255,255,0.08)">
+        <h4 style="margin:0 0 8px 0">AI response</h4>
+        <div id="ans" class="mono" style="white-space:pre-wrap; line-height:1.45; min-height:240px; color:rgba(255,255,255,0.88)"></div>
+      </div>
+
+      <div style="height:10px"></div>
+      <div class="card" style="background:rgba(2,6,23,0.35); border:1px solid rgba(255,255,255,0.08)">
+        <h4 style="margin:0 0 8px 0">References</h4>
+        <div id="refs" class="mono" style="white-space:pre-wrap; line-height:1.45; color:rgba(255,255,255,0.78)"></div>
+      </div>
     </div>
 
-    <div class="card" style="padding:14px">
-      <div class="panel-title">20 enterprise demo questions</div>
-      <div class="hint">Click any to auto-run.</div>
-      <div id="qs" style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-        {% for x in questions %}
-        <a class="btn" href="#" onclick="runQ({{loop.index0}}); return false;" style="text-align:left;white-space:normal;line-height:1.25">{{x}}</a>
-        {% endfor %}
+    <div class="card" style="min-height:72vh">
+      <h3 style="margin:0 0 10px 0">Quick actions</h3>
+      <div class="hint" style="margin-bottom:10px">Use these to navigate to the right graph pages.</div>
+      <div style="display:grid; gap:10px">
+        <a class="btn" href="/graph/{graph_key}">Open dataset lineage graph</a>
+        <a class="btn" href="/search?g={graph_key}">Search datasets / columns</a>
+        <a class="btn" href="/lineage/table/ORACLE.MART_LATITUDE_DAILY?g={graph_key}">Jump to ORACLE.MART_LATITUDE_DAILY</a>
+        <a class="btn" href="/lineage/column/ORACLE.MART_LATITUDE_DAILY.PING_COUNT?g={graph_key}">Jump to PING_COUNT lineage</a>
       </div>
-      <div class="panel-title" style="margin-top:14px">Quick links</div>
-      <div class="hint" style="margin-top:8px">
-        <div>Open dataset lineage: <a href="/lineage/table/{{default_ds}}?g={{graph_key}}">/{{default_ds}}</a></div>
-        <div>Open column lineage: <a href="/lineage/column?column={{default_ds}}.LAT_BAND&g={{graph_key}}">{{default_ds}}.LAT_BAND</a></div>
-      </div>
+
+      <div style="height:14px"></div>
+      <div class="hint">Demo questions are listed in the README (section: AI Demo questions).</div>
     </div>
   </div>
 </div>
 
 <script>
-const questions = {{ questions | tojson }};
-const graphKey = "{{graph_key}}";
-const qEl = document.getElementById("q");
-const ansEl = document.getElementById("answer");
-const refsEl = document.getElementById("refs");
-
-async function ask(question){
-  ansEl.textContent = "Thinking (offline demo)…";
-  refsEl.textContent = "—";
-  const res = await fetch("/api/ai/ask", {
+async function ask(q){
+  const ansEl=document.getElementById("ans");
+  const refsEl=document.getElementById("refs");
+  ansEl.textContent="Thinking...";
+  refsEl.textContent="";
+  const r = await fetch("/api/ai/ask", {
     method:"POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({question, graph_key: graphKey})
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({graph_key:"{graph_key}", question:q})
   });
-  const out = await res.json();
-  ansEl.innerHTML = out.answer || "—";
-  if(out.references && out.references.length){
-    refsEl.innerHTML = out.references.slice(0,5).map(r=>{
-      const e=r.edge||{};
-      return `<div style="margin-bottom:8px">
-        <div><span class="badge">edge</span> <code>${e.u||""}</code> → <code>${e.v||""}</code> <span class="pill accent">conf ${(e.confidence||0).toFixed(2)}</span></div>
-        <div class="hint">${(e.evidence||"").toString().slice(0,180)}</div>
-      </div>`;
-    }).join("");
-  } else {
-    refsEl.textContent = "—";
-  }
+  const j = await r.json();
+  ansEl.textContent = j.answer || "(no answer)";
+  refsEl.textContent = (j.references||[]).join("\n");
 }
-
-function runQ(i){
-  const q = questions[i];
-  qEl.value = q;
-  ask(q);
-}
-
-document.getElementById("ask").addEventListener("click",(e)=>{e.preventDefault(); ask(qEl.value);});
-qEl.addEventListener("keydown",(e)=>{ if(e.key==="Enter") ask(qEl.value); });
+document.getElementById("askBtn").addEventListener("click",(e)=>{
+  e.preventDefault();
+  const q=document.getElementById("q").value.trim();
+  if(q) ask(q);
+});
+document.getElementById("q").addEventListener("keydown",(e)=>{
+  if(e.key==="Enter") document.getElementById("askBtn").click();
+});
 </script>
+
 </body>
 </html>
