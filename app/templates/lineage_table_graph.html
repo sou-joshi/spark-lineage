@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"/><title>Dataset Lineage</title>
+<link rel="stylesheet" href="/static/style.css"/>
+<script src="/static/force_graph.js"></script></head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <a class="btn" href="/">Home</a>
+      <span class="badge">Dataset</span>
+      <span style="font-weight:800">{{dataset}}</span>
+    </div>
+    <span class="hint">scroll=zoom • drag bg=pan • drag node=move • click edge=evidence</span>
+  </div>
+
+  <div class="controls">
+    <label class="hint">Mode</label>
+    <select id="mode">
+      <option value="all">Up + Down</option>
+      <option value="up">Upstream</option>
+      <option value="down">Downstream</option>
+    </select>
+    <label class="hint">Depth</label>
+    <select id="depth">
+      <option value="1">1</option>
+      <option value="2" selected>2</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+    </select>
+    <a class="btn" id="recenter" href="#">Re-center</a>
+    <a class="btn" id="relax" href="#">Auto-layout</a>
+  </div>
+
+  <div class="grid">
+    <div class="card"><div id="graph"></div></div>
+    <div class="card" id="panel"></div>
+  </div>
+</div>
+
+<script>
+const dataset="{{dataset}}";
+const panel=document.getElementById("panel");
+function pill(c){
+  c=(typeof c==="number")?c:0.5;
+  if(c>=0.8) return `<span class="pill good">conf ${c.toFixed(2)}</span>`;
+  if(c>=0.6) return `<span class="pill accent">conf ${c.toFixed(2)}</span>`;
+  return `<span class="pill warn">conf ${c.toFixed(2)}</span>`;
+}
+function setPanel(html){panel.innerHTML=html;}
+
+const graph=LineageGraph.createGraph(document.getElementById("graph"),{
+  onNodeClick:(n)=>{
+    if(n.id.startsWith("ds:")) location.href="/lineage/table/"+encodeURIComponent(n.id.slice(3));
+    if(n.id.startsWith("col:")) location.href="/lineage/column?column="+encodeURIComponent(n.id.slice(4));
+  },
+  onEdgeClick:(e)=>{
+    setPanel(`
+      <div class="panel-title">Edge</div>
+      <div class="kv"><div class="k">Type</div><div>${e.edge_type}</div></div>
+      <div class="kv"><div class="k">From</div><div><code>${e.u}</code></div></div>
+      <div class="kv"><div class="k">To</div><div><code>${e.v}</code></div></div>
+      <div class="kv"><div class="k">Confidence</div><div>${pill(e.confidence)}</div></div>
+      <div class="panel-title" style="margin-top:10px">Evidence</div>
+      <pre>${(e.evidence||"—")}</pre>
+    `);
+  },
+  onBgClick:()=>loadPanel()
+});
+
+async function loadPanel(){
+  const res=await fetch(`/api/dataset/${encodeURIComponent(dataset)}?depth=1`);
+  const view=await res.json();
+  if(view.not_found){ setPanel(`<div class="panel-title">Not found</div><div class="hint">${dataset}</div>`); return; }
+  const cols=(view.cols?.nodes||[]).filter(n=>n.id.startsWith("col:")).map(n=>n.id.slice(4));
+  const rows=cols.slice(0,120).map(c=>{
+    const cn=c.split(".").slice(-1)[0];
+    return `<tr><td><a href="/lineage/column?column=${encodeURIComponent(c)}">${cn}</a></td><td class="hint">${c}</td></tr>`;
+  }).join("");
+  setPanel(`
+    <div class="panel-title">Dataset</div>
+    <div><b>${dataset}</b></div>
+    <div class="hint">Click nodes to drill into lineage. Columns are clickable for column-level lineage.</div>
+    <div class="panel-title" style="margin-top:12px">Columns</div>
+    <div class="hint">Showing ${Math.min(cols.length,120)} of ${cols.length}</div>
+    <div class="card" style="margin-top:8px;border-radius:12px">
+      <table>${rows || `<tr><td class="hint">No columns captured.</td></tr>`}</table>
+    </div>
+  `);
+}
+
+async function loadGraph(){
+  const depth=document.getElementById("depth").value;
+  const mode=document.getElementById("mode").value;
+  const res=await fetch(`/api/dataset/${encodeURIComponent(dataset)}?depth=${depth}`);
+  const view=await res.json();
+  if(view.not_found){ setPanel(`<div class="panel-title">Not found</div><div class="hint">${dataset}</div>`); return; }
+  let g=view.all;
+  if(mode==="up") g=view.up;
+  if(mode==="down") g=view.down;
+  graph.setData(g);
+  loadPanel();
+}
+
+document.getElementById("depth").addEventListener("change", loadGraph);
+document.getElementById("mode").addEventListener("change", loadGraph);
+document.getElementById("recenter").addEventListener("click",(e)=>{e.preventDefault(); graph.center();});
+document.getElementById("relax").addEventListener("click",(e)=>{e.preventDefault(); graph.startSim(); setTimeout(()=>graph.stopSim(), 1500);});
+
+loadGraph();
+</script>
+</body></html>

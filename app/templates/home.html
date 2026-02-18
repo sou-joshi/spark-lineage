@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"/><title>Spark Lineage MVP</title>
+<link rel="stylesheet" href="/static/style.css"/></head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div style="width:10px;height:10px;border-radius:999px;background:var(--accent);box-shadow:0 0 18px rgba(124,58,237,0.5)"></div>
+      <div>
+        <div style="font-weight:800">Spark Lineage MVP</div>
+        <div class="hint">Interactive graph • drag nodes • zoom/pan • column drill-down</div>
+      </div>
+    </div>
+    <span class="badge">VPC-friendly • offline-ready</span>
+  </div>
+
+  <div class="card" style="padding:14px">
+    <div class="panel-title">Open a dataset</div>
+    <div class="searchrow">
+      <input id="ds" value="{{default_ds}}" placeholder="Dataset e.g. ORACLE.MART_LATITUDE_DAILY"/>
+      <a class="btn" id="go" href="#">Open lineage</a>
+    </div>
+    <div class="hint">Try <code>ORACLE.MART_LATITUDE_DAILY</code> (mart) or <code>ORACLE.STG_LATITUDE_SESSION</code> (staging).</div>
+  </div>
+</div>
+<script>
+const input=document.getElementById("ds");
+document.getElementById("go").addEventListener("click",(e)=>{e.preventDefault(); const v=input.value.trim(); if(v) location.href="/lineage/table/"+encodeURIComponent(v);});
+input.addEventListener("keydown",(e)=>{if(e.key==="Enter") document.getElementById("go").click();});
+</script>
+</body></html>

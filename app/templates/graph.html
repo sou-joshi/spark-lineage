@@ -1,0 +1,33 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lineage Graph</title>
+    <style>
+        body { background:#111; color:#ddd; font-family:Arial; }
+        .container { padding:20px; }
+        h1 { color:#aaa; }
+        .node { padding:8px; margin:5px; background:#222; border-radius:6px; }
+        .section { margin-bottom:20px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Dataset Lineage: {{ dataset }}</h1>
+
+    <div class="section">
+        <h2>Upstream</h2>
+        {% for node in upstream %}
+            <div class="node">{{ node }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="section">
+        <h2>Downstream</h2>
+        {% for node in downstream %}
+            <div class="node">{{ node }}</div>
+        {% endfor %}
+    </div>
+</div>
+</body>
+</html>

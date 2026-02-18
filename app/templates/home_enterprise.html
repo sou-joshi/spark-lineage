@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Spark Lineage Enterprise Demo</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div style="width:10px;height:10px;border-radius:999px;background:var(--accent);box-shadow:0 0 18px rgba(124,58,237,0.5)"></div>
+        <div>
+          <div style="font-weight:800">Spark Lineage Enterprise Demo</div>
+          <div class="hint">Parsed from Spark event logs • interactive graph • column drill-down • offline-ready</div>
+        </div>
+      </div>
+      <span class="badge">Sample: Latitude (S3 → Parquet → Oracle ODS/STG/MART)</span>
+    </div>
+
+    <div class="card" style="padding:14px;margin-bottom:12px">
+      <div class="panel-title">1) Open sample dataset lineage</div>
+      <div class="searchrow">
+        <input id="ds" value="{{default_ds}}" placeholder="Dataset e.g. ORACLE.MART_LATITUDE_DAILY"/>
+        <a class="btn" id="go" href="#">Open lineage</a>
+      </div>
+      <div class="hint">Sample eventlog: <code>{{sample_eventlog}}</code></div>
+    </div>
+
+    <div class="card" style="padding:14px">
+      <div class="panel-title">2) Upload your Spark SQL event log (JSONL)</div>
+      <div class="hint">Upload stays local on this EC2. Supported records: <code>SparkListenerSQLExecutionStart</code> with <code>sparkPlanInfo</code>.</div>
+      <form action="/upload" method="post" enctype="multipart/form-data" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input type="file" name="file" required/>
+        <input type="text" name="graph_key" value="uploaded" style="min-width:180px" placeholder="graph key (e.g. team-demo)"/>
+        <button class="btn" type="submit">Upload & View</button>
+      </form>
+    </div>
+  </div>
+
+<script>
+  const input = document.getElementById("ds");
+  document.getElementById("go").addEventListener("click", (e)=>{
+    e.preventDefault();
+    const v = input.value.trim();
+    if(!v) return;
+    window.location.href = "/lineage/table/" + encodeURIComponent(v) + "?g={{graph_key}}";
+  });
+  input.addEventListener("keydown",(e)=>{
+    if(e.key === "Enter") document.getElementById("go").click();
+  });
+</script>
+</body>
+</html>
