@@ -4,65 +4,157 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Search</title>
-  <link rel="stylesheet" href="/static/app.css"/>
+  <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div style="display:flex; gap:10px; align-items:center">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
       <a class="pill" href="/">Home</a>
       <a class="pill" href="/ai?g={{ graph_key }}">AI Demo</a>
-      <span class="pill">Search</span>
+      <span class="pill pill-active">Search</span>
       <span class="badge">Graph: {{ graph_key }}</span>
     </div>
   </div>
 
-  <div class="grid" style="grid-template-columns: 1.4fr 1fr; gap:16px; margin-top:14px">
+  <div class="grid" style="grid-template-columns: 1.6fr 1fr; gap:16px; margin-top:14px">
     <div class="card">
       <h3 style="margin:0 0 10px 0">Search datasets / columns</h3>
-      <div class="hint" style="margin-bottom:10px">Fuzzy search is enabled. Try: “ping count”, “mart latitude”, “msisdn hash”, “ods latitude”.</div>
-      <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px">
-        <input id="q" type="text" value="{{ query or '' }}" placeholder="Search..."
-               style="flex:1; padding:12px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background:rgba(2,6,23,0.55); color:rgba(255,255,255,0.9)"/>
-        <a class="btn" id="go" href="#">Search</a>
+      <div class="hint" style="margin-bottom:12px">
+        Fuzzy search is enabled. Try: <span class="kbd">ping count</span>, <span class="kbd">mart latitude</span>, <span class="kbd">msisdn hash</span>, <span class="kbd">ods latitude</span>.
       </div>
 
-      <div class="card" style="background:rgba(2,6,23,0.35); border:1px solid rgba(255,255,255,0.08)">
-        <div id="results" class="mono" style="white-space:pre-wrap"></div>
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px">
+        <input id="q" type="text" value="{{ query or '' }}" placeholder="Type what you remember…"
+               style="flex:1; padding:12px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.10); background:rgba(2,6,23,0.55); color:rgba(255,255,255,0.9)"/>
+        <button class="btn" id="go" type="button">Search</button>
       </div>
+
+      <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap">
+        <button class="chip chip-active" data-filter="all" type="button">All</button>
+        <button class="chip" data-filter="dataset" type="button">Tables</button>
+        <button class="chip" data-filter="column" type="button">Columns</button>
+      </div>
+
+      <div id="meta" class="hint" style="margin-bottom:10px"></div>
+      <div id="results" class="result-grid"></div>
+      <div id="empty" class="hint" style="display:none; margin-top:10px">No matches. Try a shorter keyword.</div>
     </div>
 
     <div class="card">
       <h3 style="margin:0 0 10px 0">Tips</h3>
       <div class="mono" style="white-space:pre-wrap; color:rgba(255,255,255,0.78)">
-- Type partial names (no need for full ORACLE.X.Y).
-- Click a dataset result to open its lineage page.
-- Click a column result to open column lineage.
+• You don’t need full names like ORACLE.X.Y.
+• Search supports partials + typos.
+• Open a table → see upstream/downstream graph.
+• Open a column → see derivation + source columns.
+      </div>
+      <div style="height:10px"></div>
+      <h3 style="margin:0 0 10px 0">Examples</h3>
+      <div style="display:flex; flex-wrap:wrap; gap:8px">
+        <button class="chip" data-example="ping count" type="button">ping count</button>
+        <button class="chip" data-example="mart latitude" type="button">mart latitude</button>
+        <button class="chip" data-example="msisdn hash" type="button">msisdn hash</button>
+        <button class="chip" data-example="ods device" type="button">ods device</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
+let currentFilter = "all";
+
+function setFilter(f){
+  currentFilter = f;
+  document.querySelectorAll(".chip[data-filter]").forEach(b=>{
+    b.classList.toggle("chip-active", b.dataset.filter === f);
+  });
+  // re-run quickly with same query
+  runSearch();
+}
+
 async function runSearch(){
   const q = document.getElementById("q").value.trim();
-  const r = await fetch(`/api/search?g={{ graph_key }}&q=${encodeURIComponent(q)}&limit=25`);
-  const j = await r.json();
-  const out = [];
-  for (const it of (j.results||[])){
+  const res = await fetch(`/api/search?g={{ graph_key }}&q=${encodeURIComponent(q)}&limit=50`);
+  const j = await res.json();
+
+  const items = (j.results || []).filter(it => {
+    if(currentFilter === "all") return true;
+    return it.type === currentFilter;
+  });
+
+  const el = document.getElementById("results");
+  el.innerHTML = "";
+  document.getElementById("empty").style.display = items.length ? "none" : "block";
+
+  const meta = document.getElementById("meta");
+  meta.textContent = q ? `Showing ${items.length} result(s) for “${q}”.` : `Showing ${items.length} table(s) in this graph.`;
+
+  for (const it of items){
     const name = it.name;
     const typ = it.type;
     const score = it.score;
+
+    const card = document.createElement("div");
+    card.className = "result-card";
+
+    const title = document.createElement("div");
+    title.className = "result-title";
+    title.textContent = name;
+
+    const tag = document.createElement("div");
+    tag.className = "tag";
+    tag.textContent = typ === "dataset" ? "TABLE" : "COLUMN";
+
+    const scoreEl = document.createElement("div");
+    scoreEl.className = "score";
+    scoreEl.textContent = `match ${score}`;
+
+    const top = document.createElement("div");
+    top.className = "result-top";
+    top.appendChild(tag);
+    top.appendChild(scoreEl);
+
+    const actions = document.createElement("div");
+    actions.className = "result-actions";
+
+    let href = "#";
     if (typ === "dataset"){
-      out.push(`• [table] ${name}  (score=${score})\n   Open: /lineage/table/${encodeURIComponent(name)}?g={{ graph_key }}`);
+      href = `/lineage/table/${encodeURIComponent(name)}?g={{ graph_key }}`;
     } else {
-      out.push(`• [column] ${name}  (score=${score})\n   Open: /lineage/column?name=${encodeURIComponent(name)}&g={{ graph_key }}`);
+      href = `/lineage/column?column=${encodeURIComponent(name)}&g={{ graph_key }}`;
     }
+
+    const open = document.createElement("a");
+    open.className = "btn btn-small";
+    open.href = href;
+    open.textContent = "Open";
+
+    const copy = document.createElement("button");
+    copy.className = "btn btn-ghost btn-small";
+    copy.type = "button";
+    copy.textContent = "Copy name";
+    copy.onclick = async () => {
+      try { await navigator.clipboard.writeText(name); copy.textContent = "Copied"; setTimeout(()=>copy.textContent="Copy name", 900); }
+      catch (e) { copy.textContent = "Copy failed"; setTimeout(()=>copy.textContent="Copy name", 900); }
+    };
+
+    actions.appendChild(open);
+    actions.appendChild(copy);
+
+    card.appendChild(top);
+    card.appendChild(title);
+    card.appendChild(actions);
+    el.appendChild(card);
   }
-  document.getElementById("results").textContent = out.join("\n\n") || "No matches";
 }
+
 document.getElementById("go").addEventListener("click",(e)=>{ e.preventDefault(); runSearch(); });
 document.getElementById("q").addEventListener("keydown",(e)=>{ if(e.key==="Enter") document.getElementById("go").click(); });
+
+document.querySelectorAll(".chip[data-filter]").forEach(b=> b.addEventListener("click", ()=> setFilter(b.dataset.filter)));
+document.querySelectorAll(".chip[data-example]").forEach(b=> b.addEventListener("click", ()=> { document.getElementById("q").value = b.dataset.example; runSearch(); }));
+
 runSearch();
 </script>
 
