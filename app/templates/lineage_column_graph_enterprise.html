@@ -18,27 +18,38 @@
     <span class="hint">scroll=zoom • drag bg=pan • drag node=move • click edge=evidence</span>
   </div>
 
-  <div class="controls">
-    <label class="hint">Mode</label>
+  
+<div class="controls">
+  <span class="chip"><span class="hint">Mode</span>
     <select id="mode">
       <option value="all">Up + Down</option>
       <option value="up">Upstream</option>
       <option value="down">Downstream</option>
     </select>
+  </span>
 
-    <label class="hint">Depth</label>
+  <span class="chip"><span class="hint">Depth</span>
     <select id="depth">
       <option value="1">1</option>
       <option value="2" selected>2</option>
       <option value="3">3</option>
       <option value="4">4</option>
     </select>
+  </span>
 
-    <a class="btn" id="recenter" href="#">Re-center</a>
-    <a class="btn" id="relax" href="#">Auto-layout</a>
-  </div>
+  <span class="chip">
+    <label class="hint" style="display:flex;gap:8px;align-items:center;cursor:pointer">
+      <input id="lanes" type="checkbox" checked/>
+      Swimlanes
+    </label>
+  </span>
 
-  <div class="grid">
+  <a class="btn" id="recenter" href="#">Re-center</a>
+  <a class="btn" id="relax" href="#">Auto-layout</a>
+  <span class="hint">Tips: <span class="kbd">wheel</span> zoom • <span class="kbd">drag</span> pan • <span class="kbd">drag node</span> move • hover highlights paths</span>
+</div>
+<div class="grid">
+
     <div class="card"><div id="graph"></div></div>
     <div class="card" id="panel"></div>
   </div>
@@ -89,6 +100,32 @@ document.getElementById("depth").addEventListener("change", loadGraph);
 document.getElementById("mode").addEventListener("change", loadGraph);
 document.getElementById("recenter").addEventListener("click",(e)=>{e.preventDefault(); graph.center();});
 document.getElementById("relax").addEventListener("click",(e)=>{e.preventDefault(); graph.startSim(); setTimeout(()=>graph.stopSim(), 1500);});
+
+
+const lanesToggle = document.getElementById("lanes");
+if (lanesToggle) {
+  lanesToggle.addEventListener("change", ()=>{
+    graph.setLanesEnabled(lanesToggle.checked);
+  });
+}
+
+const findInput = document.getElementById("find");
+const findBtn = document.getElementById("findBtn");
+if (findBtn && findInput) {
+  findBtn.addEventListener("click",(e)=>{
+    e.preventDefault();
+    const q = findInput.value.trim();
+    if(!q) return;
+    const hit = graph.focusNodeByName(q);
+    if(!hit) {
+      // fallback: try navigate as dataset
+      location.href="/lineage/table/"+encodeURIComponent(q)+"?g="+encodeURIComponent(graphKey);
+    }
+  });
+  findInput.addEventListener("keydown",(e)=>{
+    if(e.key==="Enter") findBtn.click();
+  });
+}
 
 loadGraph();
 </script>

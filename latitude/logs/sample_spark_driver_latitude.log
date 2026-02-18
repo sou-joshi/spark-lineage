@@ -1,0 +1,10 @@
+2026-02-15 10:00:01 INFO  LatitudeLineageDemo: Starting run_dt=2026-02-15
+2026-02-15 10:00:03 INFO  LatitudeLineageDemo: Reading s3://telco-raw/gps_pings/dt=2026-02-15/gps_pings.csv
+2026-02-15 10:00:04 INFO  LatitudeLineageDemo: Reading s3://telco-raw/device_dim/dt=2026-02-15/device_dim.csv
+2026-02-15 10:00:10 INFO  LatitudeLineageDemo: Writing s3://telco-conformed/gps_pings_parquet/dt=2026-02-15/
+2026-02-15 10:00:12 INFO  LatitudeLineageDemo: Writing s3://telco-conformed/device_dim_parquet/dt=2026-02-15/
+2026-02-15 10:00:20 INFO  LatitudeLineageDemo: JDBC write -> ORACLE.ODS_GPS_PING (append)
+2026-02-15 10:00:22 INFO  LatitudeLineageDemo: JDBC write -> ORACLE.ODS_DEVICE_DIM (append)
+2026-02-15 10:00:35 INFO  LatitudeLineageDemo: JDBC write -> ORACLE.STG_LATITUDE_SESSION (overwrite)
+2026-02-15 10:00:48 INFO  LatitudeLineageDemo: JDBC write -> ORACLE.MART_LATITUDE_DAILY (overwrite)
+2026-02-15 10:00:50 INFO  LatitudeLineageDemo: Completed successfully
