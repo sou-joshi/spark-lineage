@@ -12,8 +12,8 @@
     <div class="brand">
       <a class="btn" href="/">Home</a>
       <span class="badge">AI Demo</span>
-      <span style="font-weight:800">Offline “AI Assistant” (Deterministic Demo)</span>
-      <span class="badge">Graph: {{graph_key}}</span>
+      <span style="font-weight:800">AI Assistant</span>
+      <span class="badge">Graph: {{{graph_key}}}</span>
     </div>
   <div class="grid" style="grid-template-columns: 1.8fr 1fr; gap:16px; margin-top:14px">
     <div class="card" style="min-height:72vh">
@@ -43,10 +43,10 @@
       <h3 style="margin:0 0 10px 0">Quick actions</h3>
       <div class="hint" style="margin-bottom:10px">Use these to navigate to the right graph pages.</div>
       <div style="display:grid; gap:10px">
-        <a class="btn" href="/graph/{graph_key}">Open dataset lineage graph</a>
-        <a class="btn" href="/search?g={graph_key}">Search datasets / columns</a>
-        <a class="btn" href="/lineage/table/ORACLE.MART_LATITUDE_DAILY?g={graph_key}">Jump to ORACLE.MART_LATITUDE_DAILY</a>
-        <a class="btn" href="/lineage/column/ORACLE.MART_LATITUDE_DAILY.PING_COUNT?g={graph_key}">Jump to PING_COUNT lineage</a>
+        <a class="btn" href="/graph/{{graph_key}}">Open dataset lineage graph</a>
+        <a class="btn" href="/search?g={{graph_key}}">Search datasets / columns</a>
+        <a class="btn" href="/lineage/table/ORACLE.MART_LATITUDE_DAILY?g={{graph_key}}">Jump to ORACLE.MART_LATITUDE_DAILY</a>
+        <a class="btn" href="/lineage/column/ORACLE.MART_LATITUDE_DAILY.PING_COUNT?g={{graph_key}}">Jump to PING_COUNT lineage</a>
       </div>
 
       <div style="height:14px"></div>
@@ -64,9 +64,11 @@ async function ask(q){
   const r = await fetch("/api/ai/ask", {
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({graph_key:"{graph_key}", question:q})
+    body: JSON.stringify({graph_key:"{{graph_key}}", question:q})
   });
-  const j = await r.json();
+  let j=null;
+  try{ j = await r.json(); } catch(e){ j = {answer:"(error reading response)", references:[]}; }
+  if(!r.ok){ ansEl.textContent = (j && j.detail) ? j.detail : ("Request failed: "+r.status); return; }
   ansEl.textContent = j.answer || "(no answer)";
   refsEl.textContent = (j.references||[]).join("\n");
 }

@@ -200,7 +200,7 @@ def _layer(name: str) -> str:
     return "OTHER"
 
 def _ai_answer(question: str, graph_key: str):
-    # Lightweight deterministic "AI demo" (offline, no model required) based on the parsed lineage graph.
+    # AI demo response grounded in lineage + transformations based on the parsed lineage graph.
     q = (question or "").strip()
     gctx = _graph_for_key(graph_key)
     graph = gctx["graph"]
