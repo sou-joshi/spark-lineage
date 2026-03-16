@@ -1,0 +1,9 @@
+
+SYMBOLGEN:  Macro variable RPT_DT resolves to 20240215
+NOTE: The infile "/data/raw/customer_latitude_20240215.csv" is:
+NOTE: There were 15234 observations read from the data set RAW.CUSTOMER_LATITUDE.
+NOTE: The data set ODS.CUSTOMER_LATITUDE has 15234 observations and 6 variables.
+MPRINT(SQL):   create table STG.CUSTOMER_LATITUDE_SESSION as select a.customer_id, a.lat_clean, a.lon_clean, a.event_date, geo_band(a.lat_clean) as lat_band, sha256(trim(a.msisdn)) as msisdn_hash, case when a.status='A' then 1 else 0 end as active_flag from ODS.CUSTOMER_LATITUDE a;
+NOTE: The data set STG.CUSTOMER_LATITUDE_SESSION has 15234 observations and 7 variables.
+NOTE: There were 15234 observations read from the data set STG.CUSTOMER_LATITUDE_SESSION.
+NOTE: The data set MART.CUSTOMER_LATITUDE_DAILY has 8 observations and 6 variables.

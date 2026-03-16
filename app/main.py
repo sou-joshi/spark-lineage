@@ -6,6 +6,9 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
 from app.spark_eventlog_parser import parse_eventlog_jsonl
+from app.sas_lineage_builder import build_sas_graph
+import re
+import difflib
 
 app = FastAPI(title="Spark Lineage Enterprise Demo (Offline)")
 templates = Jinja2Templates(directory="app/templates")
@@ -28,6 +31,19 @@ def _load_sample_latitude():
     GRAPH_CACHE[key] = {"graph": graph, "default_dataset": default_ds, "eventlog": str(eventlog)}
 
 _load_sample_latitude()
+
+
+def _load_sample_sas():
+    key = "sas_customer"
+    if key in GRAPH_CACHE:
+        return
+    code_path = SAMPLES_DIR / "sas_customer" / "code" / "customer_pipeline.sas"
+    log_path = SAMPLES_DIR / "sas_customer" / "logs" / "customer_pipeline.log"
+    graph = build_sas_graph(code_path, log_path)
+    default_ds = "MART.CUSTOMER_LATITUDE_DAILY"
+    GRAPH_CACHE[key] = {"graph": graph, "default_dataset": default_ds, "eventlog": str(log_path)}
+
+_load_sample_sas()
 
 def _filter_subgraph(graph: dict, focus_id: str, depth: int, mode: str):
     nodes = {focus_id}
@@ -82,6 +98,19 @@ def _get_graph(graph_key: str):
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     _load_sample_latitude()
+
+
+def _load_sample_sas():
+    key = "sas_customer"
+    if key in GRAPH_CACHE:
+        return
+    code_path = SAMPLES_DIR / "sas_customer" / "code" / "customer_pipeline.sas"
+    log_path = SAMPLES_DIR / "sas_customer" / "logs" / "customer_pipeline.log"
+    graph = build_sas_graph(code_path, log_path)
+    default_ds = "MART.CUSTOMER_LATITUDE_DAILY"
+    GRAPH_CACHE[key] = {"graph": graph, "default_dataset": default_ds, "eventlog": str(log_path)}
+
+_load_sample_sas()
     return templates.TemplateResponse(
         "home_enterprise.html",
         {
@@ -89,17 +118,29 @@ def home(request: Request):
             "default_ds": GRAPH_CACHE["latitude"]["default_dataset"],
             "graph_key": "latitude",
             "sample_eventlog": GRAPH_CACHE["latitude"]["eventlog"],
+            "sample_sas_log": GRAPH_CACHE["sas_customer"]["eventlog"],
         },
     )
 
 @app.post("/upload", response_class=RedirectResponse)
-async def upload_eventlog(file: UploadFile = File(...), graph_key: str = Form("uploaded")):
+async def upload_eventlog(file: UploadFile = File(...), graph_key: str = Form("uploaded"), parser_type: str = Form("spark"), code_file: UploadFile | None = File(None)):
     suffix = Path(file.filename).suffix.lower()
     if suffix not in [".jsonl", ".log", ".txt"]:
         suffix = ".jsonl"
     dest = UPLOADS_DIR / f"eventlog_{file.filename.replace('/','_')}{suffix}"
     dest.write_bytes(await file.read())
 
+
+if parser_type.lower() == "sas":
+    code_dest = None
+    if code_file is not None:
+        code_dest = UPLOADS_DIR / f"code_{code_file.filename.replace('/','_')}"
+        code_dest.write_bytes(await code_file.read())
+    if code_dest is None:
+        raise ValueError("For SAS uploads, provide both log file and code file.")
+    graph = build_sas_graph(code_dest, dest)
+    default_ds = "MART.CUSTOMER_LATITUDE_DAILY"
+else:
     graph = parse_eventlog_jsonl(dest)
     default_ds = "ORACLE.MART_LATITUDE_DAILY"
     ds_nodes = [n for n in graph.get("nodes", []) if n.get("type") == "dataset"]
@@ -169,6 +210,19 @@ def _id_for_column(full: str) -> str:
 
 def _graph_for_key(graph_key: str):
     _load_sample_latitude()
+
+
+def _load_sample_sas():
+    key = "sas_customer"
+    if key in GRAPH_CACHE:
+        return
+    code_path = SAMPLES_DIR / "sas_customer" / "code" / "customer_pipeline.sas"
+    log_path = SAMPLES_DIR / "sas_customer" / "logs" / "customer_pipeline.log"
+    graph = build_sas_graph(code_path, log_path)
+    default_ds = "MART.CUSTOMER_LATITUDE_DAILY"
+    GRAPH_CACHE[key] = {"graph": graph, "default_dataset": default_ds, "eventlog": str(log_path)}
+
+_load_sample_sas()
     return GRAPH_CACHE.get(graph_key) or GRAPH_CACHE.get("latitude")
 
 def _edges_into(graph: dict, node_id: str):
@@ -403,6 +457,19 @@ def api_search(g: str = "latitude", q: str = "", limit: int = 20):
 @app.get("/ai", response_class=HTMLResponse)
 def ai_demo(request: Request, g: str = Query("latitude")):
     _load_sample_latitude()
+
+
+def _load_sample_sas():
+    key = "sas_customer"
+    if key in GRAPH_CACHE:
+        return
+    code_path = SAMPLES_DIR / "sas_customer" / "code" / "customer_pipeline.sas"
+    log_path = SAMPLES_DIR / "sas_customer" / "logs" / "customer_pipeline.log"
+    graph = build_sas_graph(code_path, log_path)
+    default_ds = "MART.CUSTOMER_LATITUDE_DAILY"
+    GRAPH_CACHE[key] = {"graph": graph, "default_dataset": default_ds, "eventlog": str(log_path)}
+
+_load_sample_sas()
     ctx = _graph_for_key(g)
     return templates.TemplateResponse("ai_demo.html", {
         "request": request,

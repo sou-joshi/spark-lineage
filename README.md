@@ -64,3 +64,27 @@ Open `/ai` for 20 preloaded enterprise questions. This is a deterministic, offli
 18. List derived columns created in ORACLE.STG_LATITUDE and their expressions/UDFs.
 19. Which transformations are low-confidence and why?
 20. If S3 RAW schema adds a new column, what downstream objects are impacted?
+
+
+## SAS Extension
+
+This repo now includes a SAS lineage pipeline that produces the same normalized graph output as Spark.
+
+Added modules:
+- `app/sas_code_parser.py`
+- `app/sas_log_parser.py`
+- `app/sas_lineage_builder.py`
+
+Supported SAS scenarios in this starter build:
+- `LIBNAME` resolution
+- `%LET` macro substitution
+- `PROC FCMP` user-defined function detection
+- `DATA` steps with `SET`, `MERGE`, assignments, `KEEP`
+- `PROC SQL` `CREATE TABLE AS SELECT` with joins, aliases, aggregates
+- `PROC SUMMARY/MEANS` output datasets
+- `PROC APPEND`, `PROC SORT`, `PROC IMPORT`, `PROC EXPORT`
+- SAS log evidence for rows read/written and macro resolution
+
+Sample SAS graph key: `sas_customer`
+- default table: `MART.CUSTOMER_LATITUDE_DAILY`
+- AI demo: `/ai?g=sas_customer`

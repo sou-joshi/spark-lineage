@@ -15,7 +15,7 @@
           <div class="hint">Parsed from Spark event logs • interactive graph • column drill-down • offline-ready</div>
         </div>
       </div>
-      <span class="badge">Sample: Latitude (S3 → Parquet → Oracle ODS/STG/MART)</span>
+      <span class="badge">Samples: Spark Latitude + SAS Customer Latitude</span>
     </div>
 
     <div class="card" style="padding:14px;margin-bottom:12px">
@@ -25,14 +25,16 @@
         <a class="btn" id="go" href="#">Open lineage</a>
         <a class="btn" href="/ai?g=latitude">AI demo</a>
       </div>
-      <div class="hint">Sample eventlog: <code>{{sample_eventlog}}</code></div>
+      <div class="hint">Spark sample event log: <code>{{sample_eventlog}}</code><br/>SAS sample log: <code>{{sample_sas_log}}</code><br/><div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap"><a class="btn" href="/lineage/table/ORACLE.MART_LATITUDE_DAILY?g=latitude">Open Spark sample</a><a class="btn" href="/lineage/table/MART.CUSTOMER_LATITUDE_DAILY?g=sas_customer">Open SAS sample</a><a class="btn" href="/ai?g=sas_customer">Open SAS AI demo</a></div></div>
     </div>
 
     <div class="card" style="padding:14px">
-      <div class="panel-title">2) Upload your Spark SQL event log (JSONL)</div>
-      <div class="hint">Upload stays local on this EC2. Supported records: <code>SparkListenerSQLExecutionStart</code> with <code>sparkPlanInfo</code>.</div>
+      <div class="panel-title">2) Upload Spark event log or SAS log + code</div>
+      <div class="hint">Upload stays local on this EC2. Spark: <code>SparkListenerSQLExecutionStart</code> with <code>sparkPlanInfo</code>. SAS: upload the <code>.log</code> file and its corresponding <code>.sas</code> code file.</div>
       <form action="/upload" method="post" enctype="multipart/form-data" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <select name="parser_type"><option value="spark">Spark</option><option value="sas">SAS</option></select>
         <input type="file" name="file" required/>
+        <input type="file" name="code_file"/>
         <input type="text" name="graph_key" value="uploaded" style="min-width:180px" placeholder="graph key (e.g. team-demo)"/>
         <button class="btn" type="submit">Upload & View</button>
       </form>
